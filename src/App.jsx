@@ -5,16 +5,20 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
-    window.electronAPI.onDeviceFound((device) => {
-      setDevices((prev) => {
-        const exists = prev.some((d) => d.ip === device.ip);
+  window.electronAPI.onIncomingRequest(
+    (request) => {
+      const accepted = confirm(
+        `${request.senderName} quiere enviarte ${request.fileName}`
+      );
 
-        if (exists) return prev;
-
-        return [...prev, device];
-      });
-    });
-  }, []);
+      console.log(
+        accepted
+          ? "ACEPTADO"
+          : "RECHAZADO"
+      );
+    }
+  );
+}, []);
 
   return (
     <div

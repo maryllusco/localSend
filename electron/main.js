@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { startUDPServer } from "./services/udpServer.js";
+import { startWSServer } from "./services/wsServer.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,7 @@ app.whenReady().then(() => {
   const mainWindow = createWindow();
 
   startUDPServer(mainWindow);
+  startWSServer(mainWindow);
 });
 
 app.on("window-all-closed", () => {
