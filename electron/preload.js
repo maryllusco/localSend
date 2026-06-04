@@ -1,5 +1,7 @@
 const { contextBridge } = require("electron");
 
-contextBridge.exposeInMainWorld("api", {
-  ping: () => "pong"
+console.log("🚀 PRELOAD EJECUTADO");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  isServerRunning: () => true,
 });
