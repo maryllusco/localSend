@@ -5,6 +5,20 @@ export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
+  // Dispositivos encontrados
+  window.electronAPI.onDeviceFound((device) => {
+    setDevices((prev) => {
+      const exists = prev.some(
+        (d) => d.ip === device.ip
+      );
+
+      if (exists) return prev;
+
+      return [...prev, device];
+    });
+  });
+
+  // Solicitud de transferencia
   window.electronAPI.onIncomingRequest(
     (request) => {
       const accepted = confirm(
@@ -12,14 +26,20 @@ export default function App() {
       );
 
       console.log(
-        accepted
-          ? "ACEPTADO"
-          : "RECHAZADO"
+        accepted ? "ACEPTADO" : "RECHAZADO"
+      );
+    }
+  );
+
+  // Archivo recibido
+  window.electronAPI.onFileReceived(
+    (file) => {
+      alert(
+        `Archivo recibido: ${file.fileName}`
       );
     }
   );
 }, []);
-
   return (
     <div
       style={{
@@ -100,17 +120,25 @@ export default function App() {
                 cursor: selectedFile ? "pointer" : "default",
               }}
               onClick={() => {
-                if (!selectedFile) {
-                  alert(
-                    "Primero seleccioná un archivo."
-                  );
-                  return;
-                }
+  if (!selectedFile) {
+    alert(
+      "Primero seleccioná un archivo."
+    );
+    return;
+  }
 
-                alert(
-                  `Enviar ${selectedFile.name} a ${device.name}`
-                );
-              }}
+  window.electronAPI.sendFile(
+    device,
+    {
+      name: selectedFile.name,
+      size: selectedFile.size,
+    }
+  );
+
+  alert(
+    `Solicitud enviada a ${device.name}`
+  );
+}}
             >
               <div>
                 <strong>📱 {device.name}</strong>

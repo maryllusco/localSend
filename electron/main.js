@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 
 import { startUDPServer } from "./services/udpServer.js";
 import { startWSServer } from "./services/wsServer.js";
+import { startHTTPServer } from "./services/httpServer.js";
+import { registerIPCHandlers } from "./ipc/ipcHandlers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +35,9 @@ app.whenReady().then(() => {
 
   startUDPServer(mainWindow);
   startWSServer(mainWindow);
+  startHTTPServer(mainWindow);
+
+  registerIPCHandlers();
 });
 
 app.on("window-all-closed", () => {

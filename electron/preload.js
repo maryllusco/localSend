@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld(
   {
     isServerRunning: () => true,
 
+    // Dispositivos encontrados
     onDeviceFound: (callback) => {
       ipcRenderer.on(
         "device-found",
@@ -17,6 +18,7 @@ contextBridge.exposeInMainWorld(
       );
     },
 
+    // Solicitud de transferencia
     onIncomingRequest: (callback) => {
       ipcRenderer.on(
         "incoming-request",
@@ -24,10 +26,30 @@ contextBridge.exposeInMainWorld(
       );
     },
 
+    // Respuesta a transferencia
     onTransferResponse: (callback) => {
       ipcRenderer.on(
         "transfer-response",
         (_, data) => callback(data)
+      );
+    },
+
+    // Archivo recibido
+    onFileReceived: (callback) => {
+      ipcRenderer.on(
+        "file-received",
+        (_, data) => callback(data)
+      );
+    },
+
+    // Solicitar envío de archivo
+    sendFile: (device, fileInfo) => {
+      ipcRenderer.send(
+        "send-file",
+        {
+          device,
+          fileInfo,
+        }
       );
     },
   }
