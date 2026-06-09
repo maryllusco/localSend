@@ -1,16 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useDispositivos from "../../services/discovery";
 import { uploadFile } from "../../services/upload";
 import { sendFileRequest } from "../../services/wsClient";
-import { discoverDevices } from "../../services/udpDiscovery";
+import { config } from "@/config";
 
-import {
-  View,
-  Text,
-  TextInput,
-  Button,
-  Alert,
-  StyleSheet,
-} from "react-native";
+import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
 
 import * as DocumentPicker from "expo-document-picker";
 
@@ -22,34 +16,12 @@ type Device = {
 
 export default function HomeScreen() {
   const [ip, setIp] = useState("");
-const [file, setFile] = useState<any>(null);
-const [devices, setDevices] = useState<Device[]>([]);
+  const [file, setFile] = useState<any>(null);
 
-  useEffect(() => {
-  const socket = discoverDevices((device: Device) => {
-  console.log("Dispositivo encontrado:", device);
-
-  setDevices((prev: Device[]) => {
-    const exists = prev.find(
-      (d) => d.ip === device.ip
-    );
-
-    if (exists) return prev;
-
-    return [...prev, device];
-  });
-
-  setIp(device.ip);
-});
-
-    return () => {
-      socket?.close();
-    };
-  }, []);
+  const {dispositivos} = useDispositivos()
 
   async function pickFile() {
-    const result =
-      await DocumentPicker.getDocumentAsync();
+    const result = await DocumentPicker.getDocumentAsync();
 
     if (!result.canceled) {
       setFile(result.assets[0]);
@@ -59,64 +31,39 @@ const [devices, setDevices] = useState<Device[]>([]);
   async function sendFile() {
     try {
       if (!ip) {
-        Alert.alert(
-          "Error",
-          "No se encontró ninguna PC"
-        );
+        Alert.alert("Error", "No se encontró ninguna PC");
         return;
       }
 
       if (!file) {
-        Alert.alert(
-          "Error",
-          "Elegí un archivo"
-        );
+        Alert.alert("Error", "Elegí un archivo");
         return;
       }
 
-      await sendFileRequest(
-        ip,
-        file.name
-      );
+      await sendFileRequest(ip, file.name);
 
-      await uploadFile(
-        ip,
-        file
-      );
+      await uploadFile(ip, file);
 
-      Alert.alert(
-        "Éxito",
-        "Archivo enviado"
-      );
+      Alert.alert("Éxito", "Archivo enviado");
     } catch (error) {
       console.error(error);
 
-      Alert.alert(
-        "Error",
-        "No se pudo enviar"
-      );
+      Alert.alert("Error", "No se pudo enviar");
     }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        LocalSend Mobile
-      </Text>
+      <Text style={styles.title}>LocalSend Mobile</Text>
 
-      {devices.map((device) => (
-        <View
-          key={device.ip}
-          style={{ marginBottom: 10 }}
-        >
-          <Button
-            title={device.name}
-            onPress={() =>
-              setIp(device.ip)
-            }
-          />
-        </View>
-      ))}
+      <Text
+        style={{
+          fontSize: 18,
+          marginBottom: 10,
+        }}
+      >
+        Dispositivos cercanos
+      </Text>
 
       <TextInput
         placeholder="IP de la PC"
@@ -125,23 +72,13 @@ const [devices, setDevices] = useState<Device[]>([]);
         style={styles.input}
       />
 
-      <Button
-        title="Elegir archivo"
-        onPress={pickFile}
-      />
+      <Button title="Elegir archivo" onPress={pickFile} />
 
-      {file ? (
-        <Text style={styles.file}>
-          {file.name}
-        </Text>
-      ) : null}
+      {file ? <Text style={styles.file}>{file.name}</Text> : null}
 
       <View style={{ height: 20 }} />
 
-      <Button
-        title="Enviar"
-        onPress={sendFile}
-      />
+      <Button title="Enviar" onPress={sendFile} />
     </View>
   );
 }
