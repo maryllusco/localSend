@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const HTTP_PORT = 53319;
+const HTTP_PORT = 53317;
 
 export function startHTTPServer(mainWindow) {
   const server = http.createServer(
