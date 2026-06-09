@@ -1,9 +1,34 @@
 import dgram from "dgram";
+import os from "os";
 
 const PORT = 53317;
 
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (
+        iface.family === "IPv4" &&
+        !iface.internal
+      ) {
+        return iface.address;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function startUDPServer(mainWindow) {
   const server = dgram.createSocket("udp4");
+
+  server.on("error", (err) => {
+    console.error(
+      "Error UDP:",
+      err
+    );
+  });
 
   server.on("listening", () => {
     const address = server.address();
@@ -11,47 +36,60 @@ export function startUDPServer(mainWindow) {
     console.log(
       `UDP escuchando en ${address.address}:${address.port}`
     );
-    setTimeout(() => {
-  mainWindow?.webContents.send(
-    "device-found",
-    {
-      name: "Samsung Test",
-      ip: "192.168.1.50",
-      port: 8080,
-    }
-  );
-}, 3000);
   });
 
   server.on("message", (msg, rinfo) => {
-    const message = msg.toString();
+    try {
+      const message = msg.toString();
 
-    console.log(
-      `Mensaje recibido: ${message}`
-    );
-
-    if (message === "DISCOVER") {
-
-      const device = {
-        name: "PC de Luz",
-        ip: rinfo.address,
-        port: 8080,
-      };
-
-      const response = JSON.stringify({
-        type: "DEVICE",
-        ...device,
-      });
-
-      server.send(
-        response,
-        rinfo.port,
-        rinfo.address
+      console.log(
+        `Mensaje recibido: ${message} desde ${rinfo.address}:${rinfo.port}`
       );
 
-      mainWindow?.webContents.send(
-        "device-found",
-        device
+      if (message === "DISCOVER") {
+        const device = {
+          name: "PC de Luz",
+          ip: getLocalIp(),
+          port: 53318,
+        };
+
+        console.log(
+          "Respondiendo con:",
+          device
+        );
+
+        const response = JSON.stringify({
+          type: "DEVICE",
+          ...device,
+        });
+
+        server.send(
+          response,
+          rinfo.port,
+          rinfo.address,
+          (err) => {
+            if (err) {
+              console.error(
+                "Error enviando respuesta UDP:",
+                err
+              );
+            } else {
+              console.log(
+                "Respuesta DEVICE enviada"
+              );
+            }
+          }
+        );
+
+        mainWindow?.webContents.send(
+          "device-found",
+          device
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Error procesando mensaje UDP:",
+        error
       );
     }
   });

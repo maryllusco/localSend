@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld(
   {
     isServerRunning: () => true,
 
+    // Selector nativo de archivos
+    selectFile: () =>
+      ipcRenderer.invoke("select-file"),
+
     // Dispositivos encontrados
     onDeviceFound: (callback) => {
       ipcRenderer.on(
@@ -43,7 +47,10 @@ contextBridge.exposeInMainWorld(
     },
 
     // Solicitar envío de archivo
-    sendFile: (device, fileInfo) => {
+    sendFile: (
+      device,
+      fileInfo
+    ) => {
       ipcRenderer.send(
         "send-file",
         {

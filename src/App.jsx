@@ -40,6 +40,21 @@ export default function App() {
     }
   );
 }, []);
+const handleSelectFile = async () => {
+
+  const filePath =
+    await window.electronAPI.selectFile();
+
+  if (!filePath) return;
+
+  const fileName =
+    filePath.split(/[\\/]/).pop();
+
+  setSelectedFile({
+    path: filePath,
+    name: fileName,
+  });
+};
   return (
     <div
       style={{
@@ -63,34 +78,43 @@ export default function App() {
       >
         <h2>Seleccionar archivo</h2>
 
-        <input
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files[0];
-
-            if (file) {
-              setSelectedFile(file);
-            }
-          }}
-        />
+        <button
+  onClick={handleSelectFile}
+  style={{
+    padding: "10px 16px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#2563eb",
+    color: "white",
+    cursor: "pointer",
+  }}
+>
+  Seleccionar archivo
+</button>
 
         {selectedFile && (
-          <div
-            style={{
-              marginTop: "15px",
-              padding: "10px",
-              background: "#f0f0f0",
-              borderRadius: "8px",
-            }}
-          >
-            <strong>{selectedFile.name}</strong>
+  <div
+    style={{
+      marginTop: 15,
+      padding: 10,
+      background: "#f0f0f0",
+      borderRadius: 8,
+    }}
+  >
+    <strong>
+      {selectedFile.name}
+    </strong>
 
-            <p>
-              {(selectedFile.size / 1024 / 1024).toFixed(2)}
-              {" "}MB
-            </p>
-          </div>
-        )}
+    <p
+      style={{
+        fontSize: 12,
+        color: "#666",
+      }}
+    >
+      {selectedFile.path}
+    </p>
+  </div>
+)}
       </div>
 
       {/* Dispositivos */}
@@ -128,12 +152,12 @@ export default function App() {
   }
 
   window.electronAPI.sendFile(
-    device,
-    {
-      name: selectedFile.name,
-      size: selectedFile.size,
-    }
-  );
+  device,
+  {
+    name: selectedFile.name,
+    path: selectedFile.path,
+  }
+);
 
   alert(
     `Solicitud enviada a ${device.name}`

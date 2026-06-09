@@ -11,16 +11,6 @@ export function startWSServer(mainWindow) {
     `WebSocket escuchando en puerto ${WS_PORT}`
   );
 
-setTimeout(() => {
-  mainWindow?.webContents.send(
-    "incoming-request",
-    {
-      senderName: "Samsung Test",
-      fileName: "foto.jpg",
-      fileSize: 5000000,
-    }
-  );
-}, 5000);
 
   wss.on("connection", (socket, req) => {
     console.log(
