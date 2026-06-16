@@ -1,24 +1,17 @@
 import { useState } from "react";
-import useDispositivos from "../../services/discovery";
-import { uploadFile } from "../../services/upload";
-import { sendFileRequest } from "../../services/wsClient";
-import { config } from "@/config";
+import useDispositivos from "../services/discovery";
+import { uploadFile } from "../services/upload";
+// import { sendFileRequest } from "../services/wsClient";
 
 import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
 
 import * as DocumentPicker from "expo-document-picker";
 
-type Device = {
-  name: string;
-  ip: string;
-  port: number;
-};
-
 export default function HomeScreen() {
   const [ip, setIp] = useState("");
   const [file, setFile] = useState<any>(null);
 
-  const {dispositivos} = useDispositivos()
+  const { dispositivos } = useDispositivos();
 
   async function pickFile() {
     const result = await DocumentPicker.getDocumentAsync();
@@ -64,7 +57,13 @@ export default function HomeScreen() {
       >
         Dispositivos cercanos
       </Text>
-
+      {dispositivos.map((dispositivo) => {
+        return (
+          <Text style={{ color: "white" }} key={dispositivo.ip}>
+            {dispositivo.ip}
+          </Text>
+        );
+      })}
       <TextInput
         placeholder="IP de la PC"
         value={ip}

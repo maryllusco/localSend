@@ -24,19 +24,18 @@ type Dispositivo = {
   host: string;
 };
 
+const zeroconf = new Zeroconf();
 const useDispositivos = () => {
   const [dispositivos, gestionarDispositivos] = useState<Dispositivo[]>([]);
-  const zeroconf = new Zeroconf();
-
 
   console.log("Instancia:", zeroconf);
-  
+
   useEffect(() => {
     zeroconf.scan("http", "tcp", "local.");
     zeroconf.on("resolved", (service) => {
-      // console.log("Found service:", service.name);
-      // console.log("IP addresses:", service.addresses);
-      // console.log("Port:", service.port);
+      console.log("Found service:", service.name);
+      console.log("IP addresses:", service.addresses);
+      console.log("Port:", service.port);
       gestionarDispositivos([
         ...dispositivos,
         {
@@ -49,9 +48,9 @@ const useDispositivos = () => {
     return () => {
       zeroconf.stop();
     };
-  }, []);
+  });
   return {
-    dispositivos: () => dispositivos,
+    dispositivos,
   };
 };
 

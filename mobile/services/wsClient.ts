@@ -1,11 +1,6 @@
-export function sendFileRequest(
-  ip: string,
-  fileName: string
-) {
+export function sendFileRequest(ip: string, fileName: string) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(
-      `ws://${ip}:53318`
-    );
+    const ws = new WebSocket(`ws://${ip}:53318`);
 
     ws.onopen = () => {
       ws.send(
@@ -13,7 +8,7 @@ export function sendFileRequest(
           type: "FILE_REQUEST",
           senderName: "Mi Celular",
           fileName,
-        })
+        }),
       );
 
       resolve(ws);
@@ -24,3 +19,4 @@ export function sendFileRequest(
     };
   });
 }
+
