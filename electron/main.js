@@ -39,7 +39,7 @@ app.whenReady().then(() => {
   startHTTPServer(mainWindow);
   startBonjour();
 
-  registerIPCHandlers();
+  registerIPCHandlers(mainWindow);
 });
 
 app.on("window-all-closed", () => {

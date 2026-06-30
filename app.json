@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "be0ae433-bae6-43e5-95cd-d61abdc47a42"
+      }
+    },
+    "android": {
+      "package": "com.maryyy07.localsend"
+    }
+  }
+}

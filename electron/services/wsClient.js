@@ -1,78 +1,63 @@
-import WebSocket from "ws";
+import net from "net";
 import fs from "fs";
-import { uploadFile } from "./uploadServer.js";
+import { alias } from "./alias.js";
 
-export function sendFileRequest(
-  ip,
-  file
-) {
-  const socket = new WebSocket(
-    `ws://${ip}:53318`
-  );
+export function sendFileRequest(ip, file) {
+  console.log("Enviando solicitud TCP a:", ip);
 
-  socket.on("open", () => {
+  const client = new net.Socket();
+  const fileName = file.name || file.path.split("/").pop();
 
-    console.log(
-      "Conectado al receptor"
-    );
+  client.connect(53318, ip, () => {
+    console.log("✅ Conectado por TCP al mobile");
 
-    const stats =
-      fs.statSync(file.path);
+    const fileData = fs.readFileSync(file.path).toString("base64");
 
-    socket.send(
-      JSON.stringify({
-        type: "FILE_REQUEST",
-        senderName: "PC de Luz",
-        fileName: file.name,
-        fileSize: stats.size,
-      })
-    );
-  });
+    // Primero enviamos FILE_REQUEST
+    client.write(JSON.stringify({
+      type: "FILE_REQUEST",
+      senderName: alias,
+      fileName,
+      fileSize: fs.statSync(file.path).size,
+    }));
 
-  socket.on("message", async (data) => {
-
-    const message =
-      JSON.parse(data.toString());
-
-    console.log(
-      "Respuesta:",
-      message
-    );
-
-    if (
-      message.type === "FILE_RESPONSE" &&
-      message.accepted
-    ) {
-
-      console.log(
-        "Transferencia aceptada"
-      );
-
+    // Cuando recibamos FILE_RESPONSE aceptado, enviamos el archivo
+    client.once("data", (data) => {
       try {
+        const response = JSON.parse(data.toString());
+        console.log("Respuesta mobile:", response);
 
-        await uploadFile(
-          file.path,
-          ip
-        );
+        if (response.type === "FILE_RESPONSE" && response.accepted) {
+          console.log("✅ Aceptado, enviando archivo...");
 
-        console.log(
-          "Archivo enviado correctamente"
-        );
+          const payload = JSON.stringify({
+            type: "FILE_TRANSFER",
+            fileName,
+            fileData,
+          });
 
-      } catch (error) {
-
-        console.error(
-          "Error enviando archivo:",
-          error
-        );
-
+          // El callback de write() recién se dispara cuando el dato
+          // efectivamente salió por el socket. Ahí, y no antes,
+          // cerramos la conexión con end() (cierre prolijo, espera
+          // a que termine de drenar el buffer) en vez de destroy()
+          // (corte abrupto que puede cortar el archivo a la mitad).
+          client.write(payload, () => {
+            console.log("✅ Archivo enviado completo, cerrando conexión");
+            client.end();
+          });
+        } else {
+          console.log("❌ Rechazado");
+          client.destroy();
+        }
+      } catch (e) {
+        console.error("Error:", e);
+        client.destroy();
       }
-    }
+    });
   });
 
-  socket.on("error", (error) => {
-    console.error(error);
-  });
+  client.on("error", (err) => console.error("Error TCP:", err));
+  client.on("close", () => console.log("Conexión TCP cerrada"));
 
-  return socket;
+  return client;
 }

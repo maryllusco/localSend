@@ -1,100 +1,70 @@
 import dgram from "dgram";
 import os from "os";
+import { alias } from "./alias.js";
 
 const PORT = 53317;
 
 function getLocalIp() {
   const interfaces = os.networkInterfaces();
-
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name] || []) {
-      if (
-        iface.family === "IPv4" &&
-        !iface.internal
-      ) {
-        return iface.address;
-      }
+      if (iface.family === "IPv4" && !iface.internal) return iface.address;
     }
   }
-
   return null;
 }
 
 export function startUDPServer(mainWindow) {
-  const server = dgram.createSocket("udp4");
+  const server = dgram.createSocket({ type: "udp4", reuseAddr: true });
 
-  server.on("error", (err) => {
-    console.error(
-      "Error UDP:",
-      err
-    );
-  });
+  server.on("error", (err) => console.error("Error UDP:", err));
 
   server.on("listening", () => {
-    const address = server.address();
+    server.setBroadcast(true);
+    console.log(`UDP escuchando en 0.0.0.0:${PORT}`);
 
-    console.log(
-      `UDP escuchando en ${address.address}:${address.port}`
-    );
+    // Broadcast cada 3 segundos para descubrir dispositivos
+    setInterval(() => {
+      const msg = Buffer.from("DISCOVER");
+      server.send(msg, 0, msg.length, PORT, "255.255.255.255");
+    }, 3000);
   });
 
   server.on("message", (msg, rinfo) => {
     try {
-      const message = msg.toString();
+      const text = msg.toString();
+      const localIp = getLocalIp();
 
-      console.log(
-        `Mensaje recibido: ${message} desde ${rinfo.address}:${rinfo.port}`
-      );
+      // Ignorar mensajes propios
+      if (rinfo.address === localIp) return;
 
-      if (message === "DISCOVER") {
-        const device = {
-          name: "PC de Luz",
-          ip: getLocalIp(),
-          port: 53318,
-        };
-
-        console.log(
-          "Respondiendo con:",
-          device
-        );
-
-        const response = JSON.stringify({
-          type: "DEVICE",
-          ...device,
-        });
-
-        server.send(
-          response,
-          rinfo.port,
-          rinfo.address,
-          (err) => {
-            if (err) {
-              console.error(
-                "Error enviando respuesta UDP:",
-                err
-              );
-            } else {
-              console.log(
-                "Respuesta DEVICE enviada"
-              );
-            }
-          }
-        );
-
-        mainWindow?.webContents.send(
-          "device-found",
-          device
-        );
+      // Responder a DISCOVER con nuestra info
+      if (text === "DISCOVER") {
+        const device = { name: alias, ip: localIp, port: 53318 };
+        const response = JSON.stringify({ type: "DEVICE", ...device });
+        server.send(Buffer.from(response), rinfo.port, rinfo.address);
+        console.log("Respondí DISCOVER a:", rinfo.address);
+        return;
       }
+
+      // Recibir respuesta DEVICE de otro dispositivo (el celular)
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.type === "DEVICE") {
+          console.log("📱 Dispositivo encontrado:", parsed.name, parsed.ip);
+          mainWindow?.webContents.send("device-found", {
+            name: parsed.name,
+            ip: parsed.ip,
+            port: parsed.port,
+          });
+        }
+      } catch (_) {}
+
     } catch (error) {
-      console.error(
-        "Error procesando mensaje UDP:",
-        error
-      );
+      console.error("Error UDP:", error);
     }
   });
 
   server.bind(PORT);
-
   return server;
 }

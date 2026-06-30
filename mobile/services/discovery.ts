@@ -1,57 +1,89 @@
-// services/discovery.js
-
 import Zeroconf from "react-native-zeroconf";
-
-// export function discoverDevices(onDeviceFound) {
-//   zeroconf.on("resolved", (service) => {
-//     onDeviceFound({
-//       name: service.name,
-//       ip: service.addresses?.[0],
-//       port: service.port,
-//     });
-//   });
-
-//   zeroconf.scan("localsend", "tcp", "local.");
-
-//   return zeroconf;
-// }
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { startUDPListener } from "./udpDiscovery";
+import { obtenerNombreDispositivo } from "./deviceName";
 
 type Dispositivo = {
   nombre: string;
   ip: string;
   host: string;
+  lastSeen: number;
 };
 
-const zeroconf = new Zeroconf();
 const useDispositivos = () => {
-  const [dispositivos, gestionarDispositivos] = useState<Dispositivo[]>([]);
+  const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
+  const zeroconfRef = useRef(new Zeroconf());
 
-  console.log("Instancia:", zeroconf);
+  const agregarDispositivo = (
+  nombre: string,
+  ip: string,
+  host: string
+) => {
+  setDispositivos((prev) => {
+    const ahora = Date.now();
+
+    const existe = prev.find((d) => d.ip === ip);
+
+    if (existe) {
+      return prev.map((d) =>
+        d.ip === ip
+          ? { ...d, lastSeen: ahora }
+          : d
+      );
+    }
+
+    return [
+      ...prev,
+      {
+        nombre,
+        ip,
+        host,
+        lastSeen: ahora,
+      },
+    ];
+  });
+};
 
   useEffect(() => {
-    zeroconf.scan("http", "tcp", "local.");
+    const zeroconf = zeroconfRef.current;
+
+    zeroconf.on("start", () => console.log("🔍 Escaneo iniciado"));
+    zeroconf.on("stop", () => console.log("⏹ Escaneo detenido"));
+    zeroconf.on("error", (err) => console.error("❌ Error:", err));
     zeroconf.on("resolved", (service) => {
-      console.log("Found service:", service.name);
-      console.log("IP addresses:", service.addresses);
-      console.log("Port:", service.port);
-      gestionarDispositivos([
-        ...dispositivos,
-        {
-          nombre: service.name,
-          ip: service.addresses[0],
-          host: service.host,
-        },
-      ]);
+      console.log("✅ Zeroconf encontrado:", service.name);
+      agregarDispositivo(service.name, service.addresses[0], service.host);
     });
+
+    zeroconf.scan("localsend", "tcp", "local.");
+
+    let udpSocket: any = null;
+    obtenerNombreDispositivo().then((nombre) => {
+      udpSocket = startUDPListener(nombre, (device: any) => {
+        agregarDispositivo(device.name, device.ip, device.ip);
+      });
+    });
+    const ttl = setInterval(() => {
+  const ahora = Date.now();
+
+  setDispositivos((prev) =>
+    prev.filter(
+      (d) => ahora - d.lastSeen < 7000
+    )
+  );
+}, 1000);
+
     return () => {
+      clearInterval(ttl);
       zeroconf.stop();
+      zeroconf.removeDeviceListeners();
+      udpSocket?.close();
+      
     };
-  });
-  return {
-    dispositivos,
-  };
+    
+  }, []);
+
+  return { dispositivos };
 };
 
 export default useDispositivos;

@@ -1,41 +1,42 @@
-import { ipcMain, dialog } from "electron";
+import { ipcMain, dialog, Notification } from "electron";
 import { sendFileRequest } from "../services/wsClient.js";
 
-export function registerIPCHandlers() {
+let mainWindowRef = null;
 
-  ipcMain.handle(
-    "select-file",
-    async () => {
-      const result =
-        await dialog.showOpenDialog({
-          properties: ["openFile"],
-        });
+export function registerIPCHandlers(mainWindow) {
+  mainWindowRef = mainWindow;
 
-      if (
-        result.canceled ||
-        result.filePaths.length === 0
-      ) {
-        return null;
-      }
+  ipcMain.handle("select-file", async () => {
+    const result = await dialog.showOpenDialog({ properties: ["openFile"] });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
 
-      return result.filePaths[0];
-    }
-  );
+  ipcMain.on("send-file", (event, data) => {
+    console.log("Enviar archivo solicitado:", data);
+    sendFileRequest(data.device.ip, data.fileInfo);
+  });
 
-  ipcMain.on(
-    "send-file",
-    (event, data) => {
+  ipcMain.on("accept-transfer", () => {
+    mainWindowRef?.webContents.send("transfer-response", { accepted: true });
+  });
 
-      console.log(
-        "Enviar archivo solicitado:",
-        data
-      );
-      console.log("LLAMANDO sendFileRequest");
+  ipcMain.on("reject-transfer", () => {
+    mainWindowRef?.webContents.send("transfer-response", { accepted: false });
+  });
+}
 
-      sendFileRequest(
-        data.device.ip,
-        data.fileInfo
-      );
-    }
-  );
+export async function showIncomingNotification(request) {
+  const { response } = await dialog.showMessageBox(mainWindowRef, {
+    type: "question",
+    buttons: ["Aceptar", "Rechazar"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "📥 Transferencia entrante",
+    message: `${request.senderName} quiere enviarte:`,
+    detail: `📄 ${request.fileName}`,
+  });
+
+  const accepted = response === 0;
+  mainWindowRef?.webContents.send("transfer-response", { accepted });
 }

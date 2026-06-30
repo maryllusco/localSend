@@ -1,7 +1,3 @@
-import Bonjour from "bonjour-service";
-
-const bonjour = new Bonjour();
-
 const adjetivos = ["Cheerful", "Brave", "Calm", "Swift", "Bright", "Cool", "Happy", "Lucky"];
 const colores = ["Orange", "Blue", "Green", "Purple", "Silver", "Gold", "Coral", "Teal"];
 
@@ -11,13 +7,9 @@ function generarAlias() {
   return `${adj} ${color}`;
 }
 
-const alias = generarAlias();
+// Se genera una vez por sesión
+const aliasDelDispositivo = generarAlias();
 
-export function startBonjour() {
-  bonjour.publish({
-    name: alias,
-    type: "localsend",
-    port: 53317,
-  });
-  console.log("Servicio Bonjour publicado como:", alias);
+export async function obtenerNombreDispositivo(): Promise<string> {
+  return aliasDelDispositivo;
 }

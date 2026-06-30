@@ -1,185 +1,71 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDevices } from "./hooks/useDevices";
+import { useTransfer } from "./hooks/useTransfer";
+import { useFileSelector } from "./hooks/useFileSelector";
+import { useElectronEvents } from "./hooks/useElectronEvents";
+import Header from "./components/Header";
+import FileSelector from "./components/FileSelector";
+import DeviceList from "./components/DeviceList";
+import TransferMonitor from "./components/TransferMonitor";
 
 export default function App() {
-  const [devices, setDevices] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [serverActive] = useState(true);
+  const { devices, addDevice } = useDevices();
+  const { transfer, startTransfer, completeTransfer } = useTransfer();
+  const {
+    selectedFile, isDragging,
+    handleSelectFile, handleDragEnter,
+    handleDragLeave, handleDragOver, handleDrop,
+  } = useFileSelector();
 
-  useEffect(() => {
-  // Dispositivos encontrados
-  window.electronAPI.onDeviceFound((device) => {
-    setDevices((prev) => {
-      const exists = prev.some(
-        (d) => d.ip === device.ip
-      );
-
-      if (exists) return prev;
-
-      return [...prev, device];
-    });
+  useElectronEvents({
+    onDeviceFound: addDevice,
+    onIncomingRequest: (request) => {
+      confirm(`📥 ${request.senderName} quiere enviarte:\n📄 ${request.fileName}`);
+    },
+    onFileReceived: (file) => {
+      completeTransfer(file.fileName);
+      new Notification("✅ Archivo recibido", { body: file.fileName });
+    },
   });
 
-  // Solicitud de transferencia
-  window.electronAPI.onIncomingRequest(
-    (request) => {
-      const accepted = confirm(
-        `${request.senderName} quiere enviarte ${request.fileName}`
-      );
+  const handleSendFile = (device) => {
+    if (!selectedFile) { alert("Primero seleccioná un archivo."); return; }
+    startTransfer(selectedFile.name);
+    window.electronAPI.sendFile(device, { name: selectedFile.name, path: selectedFile.path });
+  };
 
-      console.log(
-        accepted ? "ACEPTADO" : "RECHAZADO"
-      );
-    }
-  );
-
-  // Archivo recibido
-  window.electronAPI.onFileReceived(
-    (file) => {
-      alert(
-        `Archivo recibido: ${file.fileName}`
-      );
-    }
-  );
-}, []);
-const handleSelectFile = async () => {
-
-  const filePath =
-    await window.electronAPI.selectFile();
-
-  if (!filePath) return;
-
-  const fileName =
-    filePath.split(/[\\/]/).pop();
-
-  setSelectedFile({
-    path: filePath,
-    name: fileName,
-  });
-};
   return (
     <div
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       style={{
         minHeight: "100vh",
         padding: "30px",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: isDragging ? "#e8f4ff" : "#f5f5f5",
+        border: isDragging ? "3px dashed #2563eb" : "3px solid transparent",
+        transition: "all 0.2s",
+        boxSizing: "border-box",
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1>🚀 LocalSend</h1>
+      {isDragging && (
+        <div style={{
+          position: "fixed", inset: 0, display: "flex",
+          alignItems: "center", justifyContent: "center",
+          backgroundColor: "rgba(37,99,235,0.1)", zIndex: 999,
+          fontSize: 32, fontWeight: "bold", color: "#2563eb",
+        }}>
+          📂 Soltá el archivo aquí
+        </div>
+      )}
 
-      {/* Archivo seleccionado */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "10px",
-          marginBottom: "20px",
-          boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-        }}
-      >
-        <h2>Seleccionar archivo</h2>
-
-        <button
-  onClick={handleSelectFile}
-  style={{
-    padding: "10px 16px",
-    borderRadius: "8px",
-    border: "none",
-    background: "#2563eb",
-    color: "white",
-    cursor: "pointer",
-  }}
->
-  Seleccionar archivo
-</button>
-
-        {selectedFile && (
-  <div
-    style={{
-      marginTop: 15,
-      padding: 10,
-      background: "#f0f0f0",
-      borderRadius: 8,
-    }}
-  >
-    <strong>
-      {selectedFile.name}
-    </strong>
-
-    <p
-      style={{
-        fontSize: 12,
-        color: "#666",
-      }}
-    >
-      {selectedFile.path}
-    </p>
-  </div>
-)}
-      </div>
-
-      {/* Dispositivos */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "10px",
-          boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-        }}
-      >
-        <h2>
-          Dispositivos encontrados ({devices.length})
-        </h2>
-
-        {devices.length === 0 ? (
-          <p>No se encontraron dispositivos.</p>
-        ) : (
-          devices.map((device, index) => (
-            <div
-              key={index}
-              style={{
-                padding: "12px",
-                marginTop: "10px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                cursor: selectedFile ? "pointer" : "default",
-              }}
-              onClick={() => {
-  if (!selectedFile) {
-    alert(
-      "Primero seleccioná un archivo."
-    );
-    return;
-  }
-
-  window.electronAPI.sendFile(
-  device,
-  {
-    name: selectedFile.name,
-    path: selectedFile.path,
-  }
-);
-
-  alert(
-    `Solicitud enviada a ${device.name}`
-  );
-}}
-            >
-              <div>
-                <strong>📱 {device.name}</strong>
-              </div>
-
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "#666",
-                }}
-              >
-                {device.ip}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <Header serverActive={serverActive} />
+      <FileSelector selectedFile={selectedFile} onSelectFile={handleSelectFile} />
+      <TransferMonitor transfer={transfer} />
+      <DeviceList devices={devices} onSendFile={handleSendFile} />
     </div>
   );
 }

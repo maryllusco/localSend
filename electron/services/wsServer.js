@@ -1,4 +1,5 @@
 import { WebSocketServer } from "ws";
+import { showIncomingNotification } from "../ipc/ipcHandlers.js";
 
 const WS_PORT = 53318;
 
@@ -31,10 +32,8 @@ export function startWSServer(mainWindow) {
 
         switch (message.type) {
           case "FILE_REQUEST":
-            mainWindow?.webContents.send(
-              "incoming-request",
-              message
-            );
+  mainWindow?.webContents.send("incoming-request", message);
+  showIncomingNotification(message);
             break;
 
           case "FILE_RESPONSE":

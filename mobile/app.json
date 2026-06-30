@@ -12,13 +12,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.maryyy07.mobile",
       "infoPlist": {
-        "NSBonjourServices": ["[YOUR_SERVICE]"],
-        "NSLocalNetworkUsageDescription": "Allow [YOUR APP] to discover devices on the local network."
+        "NSBonjourServices": ["_localsend._tcp"],
+        "NSLocalNetworkUsageDescription": "LocalSend necesita acceso a la red local para descubrir y conectarse con otros dispositivos.",
+        "NSPhotoLibraryUsageDescription": "LocalSend necesita acceso a tus fotos para enviarlas.",
+        "NSPhotoLibraryAddUsageDescription": "LocalSend necesita permiso para guardar archivos recibidos en tu galería."
       }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
+        "usesCleartextTraffic": true,
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -30,7 +33,14 @@
         "android.permission.ACCESS_WIFI_STATE",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CHANGE_WIFI_MULTICAST_STATE",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
       ]
     },
     "web": {
@@ -49,6 +59,14 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Permitir que LocalSend guarde los archivos recibidos en tu galería.",
+          "savePhotosPermission": "Permitir que LocalSend guarde los archivos recibidos en tu galería."
         }
       ]
     ],

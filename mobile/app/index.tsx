@@ -1,111 +1,132 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useDispositivos from "../services/discovery";
 import { uploadFile } from "../services/upload";
-// import { sendFileRequest } from "../services/wsClient";
-
-import { Alert, Button, StyleSheet, Text, TextInput, View } from "react-native";
-
+import { Alert, Button, StyleSheet, Text, View, ScrollView } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
+import * as Haptics from "expo-haptics";
+import Radar from "../components/Radar";
+import { obtenerNombreDispositivo } from "../services/deviceName";
+import { startWSServer } from "../services/wsServer";
+
+type Dispositivo = { nombre: string; ip: string; host: string };
 
 export default function HomeScreen() {
-  const [ip, setIp] = useState("");
+  const [seleccionado, setSeleccionado] = useState<Dispositivo | null>(null);
   const [file, setFile] = useState<any>(null);
-
+  const [nombreDispositivo, setNombreDispositivo] = useState("");
+  const [progreso, setProgreso] = useState<number | null>(null);
   const { dispositivos } = useDispositivos();
 
-  async function pickFile() {
-    const result = await DocumentPicker.getDocumentAsync();
+  useEffect(() => {
+  obtenerNombreDispositivo().then(setNombreDispositivo);
 
-    if (!result.canceled) {
-      setFile(result.assets[0]);
-    }
+  startWSServer((request, socket) => {
+
+    Alert.alert(
+      "Archivo entrante",
+      `${request.senderName} quiere enviarte:\n${request.fileName}`,
+      [
+        {
+          text: "Aceptar",
+          onPress: () => {
+            socket.write(
+              JSON.stringify({
+                type: "FILE_RESPONSE",
+                accepted: true,
+              })
+            );
+          },
+        },
+        {
+          text: "Rechazar",
+          onPress: () => {
+            socket.write(
+              JSON.stringify({
+                type: "FILE_RESPONSE",
+                accepted: false,
+              })
+            );
+          },
+        },
+      ]
+    );
+  });
+}, []);
+
+  async function pickFile() {
+    const result = await DocumentPicker.getDocumentAsync({ type: "*/*" });
+    if (!result.canceled) setFile(result.assets[0]);
   }
 
   async function sendFile() {
     try {
-      if (!ip) {
-        Alert.alert("Error", "No se encontró ninguna PC");
-        return;
-      }
+      if (!seleccionado) { Alert.alert("Error", "Tocá un dispositivo primero"); return; }
+      if (!file) { Alert.alert("Error", "Elegí un archivo"); return; }
 
-      if (!file) {
-        Alert.alert("Error", "Elegí un archivo");
-        return;
-      }
+      setProgreso(0);
+      const intervalo = setInterval(() => {
+        setProgreso((prev) => (prev === null || prev >= 90 ? prev : prev + 10));
+      }, 200);
 
-      await sendFileRequest(ip, file.name);
+      await uploadFile(seleccionado.ip, file);
 
-      await uploadFile(ip, file);
-
-      Alert.alert("Éxito", "Archivo enviado");
+      clearInterval(intervalo);
+      setProgreso(100);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("✅ Éxito", "Archivo enviado a " + seleccionado.nombre);
+      setTimeout(() => setProgreso(null), 2000);
     } catch (error) {
-      console.error(error);
-
-      Alert.alert("Error", "No se pudo enviar");
-    }
+  setProgreso(null);
+  console.log("❌ ERROR REAL:", error);
+  Alert.alert("Error", "No se pudo enviar");
+}
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>LocalSend Mobile</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>LocalSend</Text>
+      <Text style={styles.alias}>📱 {nombreDispositivo}</Text>
 
-      <Text
-        style={{
-          fontSize: 18,
-          marginBottom: 10,
-        }}
-      >
-        Dispositivos cercanos
-      </Text>
-      {dispositivos.map((dispositivo) => {
-        return (
-          <Text style={{ color: "white" }} key={dispositivo.ip}>
-            {dispositivo.ip}
-          </Text>
-        );
-      })}
-      <TextInput
-        placeholder="IP de la PC"
-        value={ip}
-        onChangeText={setIp}
-        style={styles.input}
+      <Radar
+        dispositivos={dispositivos}
+        onSeleccionar={setSeleccionado}
+        seleccionado={seleccionado?.ip ?? ""}
       />
 
       <Button title="Elegir archivo" onPress={pickFile} />
 
-      {file ? <Text style={styles.file}>{file.name}</Text> : null}
+      {file && (
+        <View style={styles.previewContainer}>
+          <Text style={styles.fileName} numberOfLines={1}>📄 {file.name}</Text>
+          {progreso !== null && (
+            <View style={styles.barraFondo}>
+              <View style={[styles.barraProgreso, { width: `${progreso}%` }]} />
+            </View>
+          )}
+          {progreso !== null && (
+            <Text style={styles.progresoTexto}>
+              {progreso === 100 ? "✅ Enviado" : `${progreso}%`}
+            </Text>
+          )}
+        </View>
+      )}
 
       <View style={{ height: 20 }} />
-
       <Button title="Enviar" onPress={sendFile} />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
+  container: { flexGrow: 1, alignItems: "center", padding: 20, paddingTop: 60 },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 8, color: "white" },
+  alias: { color: "gray", marginBottom: 24, fontSize: 14 },
+  previewContainer: {
+    marginTop: 15, width: "100%",
+    padding: 12, backgroundColor: "#1a1a1a", borderRadius: 10,
   },
-
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 30,
-    textAlign: "center",
-  },
-
-  input: {
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 20,
-    borderRadius: 8,
-  },
-
-  file: {
-    marginTop: 15,
-    marginBottom: 15,
-    textAlign: "center",
-  },
+  fileName: { color: "white", fontSize: 13, marginBottom: 6 },
+  barraFondo: { height: 8, backgroundColor: "#333", borderRadius: 4, overflow: "hidden" },
+  barraProgreso: { height: "100%", backgroundColor: "#00ff88", borderRadius: 4 },
+  progresoTexto: { color: "#00ff88", fontSize: 12, marginTop: 4 },
 });
